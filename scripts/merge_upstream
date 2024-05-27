@@ -1,0 +1,94 @@
+#!/bin/bash
+
+UPSTREAM=upstream
+
+if (( $# != 1 )); then
+    >&2 echo "Syntax: $0 <tag>"
+    exit 1
+fi
+
+TAG=$1
+
+#Check that git exists
+if ! command -v git &> /dev/null
+then
+    echo "git could not be found"
+    exit 1
+fi
+
+#Check that grep exists
+if ! command -v grep &> /dev/null
+then
+    echo "grep could not be found"
+    exit 1
+fi
+
+
+#Check if upstream exists
+if ! git remote | grep ${UPSTREAM} &> /dev/null; then
+    echo "Adding ${UPSTREAM} repo"
+    git remote add ${UPSTREAM} https://github.com/cloudflare/cf-terraforming.git
+fi
+
+if ! git remote | grep ${UPSTREAM} &> /dev/null; then
+    echo "Upstram repo is not available and cannot be added"
+    exit 1
+fi
+
+echo "Fetching ${UPSTREAM}"
+if ! git fetch ${UPSTREAM} &> /dev/null; then
+    echo "Cannot fetch ${UPSTREAM}"
+    exit 1
+fi
+
+
+#Check for tag on remote branch
+if ! git ls-remote ${UPSTREAM} | grep ${TAG} &> /dev/null; then
+    echo "Tag ${TAG} could not be found on ${UPSTREAM}"
+    exit 1
+fi
+
+echo "Checking out master"
+if ! git checkout master &> /dev/null; then
+    echo "Could not checkout master"
+    exit 1
+fi
+
+echo "Pulling master"
+if ! git pull  &> /dev/null; then
+    echo "Could not pull master"
+    exit 1
+fi
+
+
+echo "Pulling master with upstream tag ${TAG}"
+if ! git merge ${TAG} -m "Merging upstream tag ${TAG}"  &> /dev/null; then
+    echo "Could not merge upstream tag ${TAG} into master"
+    exit 1
+fi
+
+echo "Removing local tag ${TAG} (previously on upstream commit)"
+if ! git tag -d ${TAG}  &> /dev/null; then
+    echo "Could not remove tag ${TAG}"
+    exit 1
+fi
+
+echo "Adding local tag ${TAG} to HEAD"
+if ! git tag -a ${TAG} -m "Added tag ${TAG}" &> /dev/null; then
+    echo "Could not add local tag ${TAG} to HEAD"
+    exit 1
+fi
+
+echo "Pushing merge to origin"
+if ! git push origin &> /dev/null; then
+    echo "Cannot push origin"
+    exit 1
+fi
+
+if ! git push origin ${TAG} &> /dev/null; then
+    echo "Cannot push origin ${TAG}"
+    exit 1
+fi
+
+echo "Merge completed"
+

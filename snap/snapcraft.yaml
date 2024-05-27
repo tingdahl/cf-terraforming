@@ -1,0 +1,35 @@
+name: cf-terraforming
+title: cf-terraforming
+contact: https://github.com/tingdahl/cf-terraforming
+website: https://github.com/tingdahl/cf-terraforming
+license: MPL-2.0
+summary: Terraform tools for Cloudflare.
+version: git
+description: >
+      The cf-terraforming tool from https://github.com/cloudflare/cf-terraforming
+      The the snap should follow the upstream project.
+adopt-info: cf-terraforming
+source-code: https://github.com/tingdahl/cf-terraforming.git
+grade: stable
+base: core22
+
+confinement: strict
+
+apps:
+  cf-terraforming:
+    command: cf-terraforming
+    plugs:
+      - home
+      - removable-media
+      - network-bind
+parts:
+  cf-terraforming:
+    plugin: go
+    build-environment:
+      - GOBIN: "$CRAFT_PRIME"
+    build-snaps: [go]
+    source-type: git
+    override-build: |
+      make
+      cp ./cf-terraforming $SNAPCRAFT_PART_INSTALL/
+    source: https://github.com/tingdahl/cf-terraforming.git
