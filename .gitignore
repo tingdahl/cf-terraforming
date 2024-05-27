@@ -12,6 +12,11 @@
 *.out
 .idea/
 
+*.terraform
+*.terraform.lock.hcl
+
+# ignore for testing locally
+main.tf
 
 # Snap outputs
 *.snap

@@ -879,11 +879,88 @@ func generateResources() func(cmd *cobra.Command, args []string) {
 				if err != nil {
 					log.Fatal(err)
 				}
+			case "cloudflare_teams_list":
+				jsonPayload, _, err := api.ListTeamsLists(context.Background(), identifier, cloudflare.ListTeamListsParams{})
+				if err != nil {
+					log.Fatal(err)
+				}
+				// get items for the lists and add it the specific list struct
+				for i, TeamsList := range jsonPayload {
+					items_struct, _, err := api.ListTeamsListItems(
+						context.Background(),
+						identifier,
+						cloudflare.ListTeamsListItemsParams{ListID: TeamsList.ID})
+					if err != nil {
+						log.Fatal(err)
+					}
+					TeamsList.Items = append(TeamsList.Items, items_struct...)
+					jsonPayload[i] = TeamsList
+				}
+				m, err := json.Marshal(jsonPayload)
+				if err != nil {
+					log.Fatal(err)
+				}
+				err = json.Unmarshal(m, &jsonStructData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				resourceCount = len(jsonPayload)
+
+				// converting the items to value field and not the otherway around
+				for i := 0; i < resourceCount; i++ {
+					if jsonStructData[i].(map[string]interface{})["items"] != nil && len(jsonStructData[i].(map[string]interface{})["items"].([]interface{})) > 0 {
+						// new interface for storing data
+						var newItems []interface{}
+						for _, item := range jsonStructData[i].(map[string]interface{})["items"].([]interface{}) {
+							newItems = append(newItems, item.(map[string]interface{})["value"])
+						}
+						jsonStructData[i].(map[string]interface{})["items"] = newItems
+					}
+				}
+			case "cloudflare_teams_location":
+				jsonPayload, _, err := api.TeamsLocations(context.Background(), accountID)
+				if err != nil {
+					log.Fatal(err)
+				}
+				resourceCount = len(jsonPayload)
+				m, _ := json.Marshal(jsonPayload)
+				err = json.Unmarshal(m, &jsonStructData)
+				if err != nil {
+					log.Fatal(err)
+				}
+			case "cloudflare_teams_proxy_endpoint":
+				jsonPayload, _, err := api.TeamsProxyEndpoints(context.Background(), accountID)
+				if err != nil {
+					log.Fatal(err)
+				}
+				resourceCount = len(jsonPayload)
+				m, _ := json.Marshal(jsonPayload)
+				err = json.Unmarshal(m, &jsonStructData)
+				if err != nil {
+					log.Fatal(err)
+				}
+			case "cloudflare_teams_rule":
+				jsonPayload, err := api.TeamsRules(context.Background(), accountID)
+				if err != nil {
+					log.Fatal(err)
+				}
+				resourceCount = len(jsonPayload)
+				m, _ := json.Marshal(jsonPayload)
+				err = json.Unmarshal(m, &jsonStructData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// check for empty descriptions
+				for i := 0; i < resourceCount; i++ {
+					if jsonStructData[i].(map[string]interface{})["description"] == "" {
+						jsonStructData[i].(map[string]interface{})["description"] = "default"
+					}
+				}
 			case "cloudflare_tunnel":
 				log.Debug("only requesting the first 1000 active Cloudflare Tunnels due to the service not providing correct pagination responses")
 				jsonPayload, _, err := api.ListTunnels(
 					context.Background(),
-					cloudflare.AccountIdentifier(accountID),
+					identifier,
 					cloudflare.TunnelListParams{
 						IsDeleted: cloudflare.BoolPtr(false),
 						ResultInfo: cloudflare.ResultInfo{
@@ -905,7 +982,7 @@ func generateResources() func(cmd *cobra.Command, args []string) {
 				for i := 0; i < resourceCount; i++ {
 					secret, err := api.GetTunnelToken(
 						context.Background(),
-						cloudflare.AccountIdentifier(accountID),
+						identifier,
 						jsonStructData[i].(map[string]interface{})["id"].(string),
 					)
 					if err != nil {
@@ -1030,18 +1107,22 @@ func generateResources() func(cmd *cobra.Command, args []string) {
 					log.Fatal(err)
 				}
 			case "cloudflare_waiting_room_settings":
-				jsonPayload, err := api.GetWaitingRoomSettings(context.Background(), cloudflare.ZoneIdentifier(zoneID))
+				waitingRoomSettings, err := api.GetWaitingRoomSettings(context.Background(), cloudflare.ZoneIdentifier(zoneID))
 				if err != nil {
 					log.Fatal(err)
 				}
+				var jsonPayload []cloudflare.WaitingRoomSettings
+				jsonPayload = append(jsonPayload, waitingRoomSettings)
+
 				resourceCount = 1
-				var jsonPayloadInterface interface{}
 				m, _ := json.Marshal(jsonPayload)
-				err = json.Unmarshal(m, &jsonPayloadInterface)
+				err = json.Unmarshal(m, &jsonStructData)
 				if err != nil {
 					log.Fatal(err)
 				}
-				jsonStructData = []interface{}{jsonPayloadInterface}
+
+				jsonStructData[0].(map[string]interface{})["id"] = zoneID
+				jsonStructData[0].(map[string]interface{})["search_engine_crawler_bypass"] = waitingRoomSettings.SearchEngineCrawlerBypass
 			case "cloudflare_workers_kv_namespace":
 				jsonPayload, _, err := api.ListWorkersKVNamespaces(context.Background(), identifier, cloudflare.ListWorkersKVNamespacesParams{})
 				if err != nil {
@@ -1174,7 +1255,7 @@ func generateResources() func(cmd *cobra.Command, args []string) {
 			}
 			// If we don't have any resources to generate, just bail out early.
 			if resourceCount == 0 {
-				fmt.Fprint(cmd.OutOrStderr(), "no resources found to generate")
+				fmt.Fprintf(cmd.OutOrStderr(), "no resources of type %q found to generate", resourceType)
 				return
 			}
 
