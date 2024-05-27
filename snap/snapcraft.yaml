@@ -22,6 +22,7 @@ apps:
       - home
       - removable-media
       - network-bind
+      - network
 parts:
   cf-terraforming:
     plugin: go
