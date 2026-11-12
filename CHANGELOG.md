@@ -1,4 +1,12 @@
-## Unreleased
+## 0.31.0 (November 10th, 2026)
+
+- import: fix `cloudflare_ruleset` address mismatch with `generate` — under provider v5 the managed-ruleset filter was unreachable, causing `import` to emit blocks for read-only Cloudflare-managed rulesets; independently, `import` never sorted rulesets before assigning the `_<n>` suffix while `generate` sorted by phase, so addresses diverged even when the set agreed. ([#1008](https://github.com/cloudflare/cf-terraforming/pull/1008), fixes [#938](https://github.com/cloudflare/cf-terraforming/issues/938), [#970](https://github.com/cloudflare/cf-terraforming/issues/970), [#985](https://github.com/cloudflare/cf-terraforming/issues/985))
+
+## 0.30.0 (October 22nd, 2026)
+
+- deps: build with Go 1.27.3, which distrusts a set of intermediate certificate authorities that have been revoked for CA compromise. The distrust list is compiled into the binary, so affected chains are rejected regardless of the host's system trust store.
+- generate: emit `discovery_id` instead of `operation_id` for `cloudflare_api_shield_discovery_operation`, matching the attribute rename in provider v5.28.0. Generated configuration for this resource was rejected by `terraform validate` against provider v5.28.0 and later.
+- generate: drop v5 support for `cloudflare_registrar_domain`. Provider v5.28.0 removed the resource, so there is no schema to generate against. v4 output is unaffected.
 
 ## 0.29.0 (September 1st, 2026)
 
