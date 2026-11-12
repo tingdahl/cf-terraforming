@@ -36,7 +36,7 @@ parts:
     build-environment:
       - GOBIN: "$CRAFT_PRIME"
     build-snaps:
-      - go/1.26/stable
+      - go/1.27/stable
     source-type: git
     override-build: |
       make
